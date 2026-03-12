@@ -4,7 +4,7 @@ import { crawlInvenBatch, crawlYoutubeBatch } from "@/lib/crawler";
 import { analyzeReviews } from "@/lib/ai-summary";
 import type { Review } from "@/lib/types";
 
-// POST: 배치 크롤링 + AI 분석
+// POST: 배치 크롤링 + AI 분석 (v2)
 // ?mode=crawl    → 인벤 리뷰 배치 크롤링
 // ?mode=youtube  → 유튜브 리뷰 크롤링
 // ?mode=analyze  → 리뷰 있는 선수 중 AI 분석 없는 선수 분석
