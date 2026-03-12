@@ -161,7 +161,7 @@ async function searchYoutubeVideos(
   const results: { videoId: string; title: string; channelTitle: string }[] = [];
 
   // ytInitialData에서 비디오 정보 추출
-  const dataMatch = html.match(/var ytInitialData = ({.*?});<\/script>/s);
+  const dataMatch = html.match(/var ytInitialData = ({[\s\S]*?});<\/script>/);
   if (!dataMatch) return [];
 
   try {
