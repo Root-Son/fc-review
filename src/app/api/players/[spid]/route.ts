@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { fetchSeasons } from "@/lib/nexon-api";
 
 export async function GET(
   _req: NextRequest,
@@ -39,8 +40,12 @@ export async function GET(
     .select("*", { count: "exact", head: true })
     .eq("spid", spidNum);
 
+  // 시즌 이미지 URL
+  const seasons = await fetchSeasons();
+  const seasonImg = seasons.find((s) => s.seasonId === player.season_id)?.seasonImg || null;
+
   return NextResponse.json({
-    player,
+    player: { ...player, season_img: seasonImg },
     summary,
     feelStats,
     reviewCount: count || 0,

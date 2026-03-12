@@ -1,5 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { fetchSeasons } from "@/lib/nexon-api";
+
+let seasonImgCache: Map<number, string> | null = null;
+
+async function getSeasonImgMap(): Promise<Map<number, string>> {
+  if (seasonImgCache) return seasonImgCache;
+  const seasons = await fetchSeasons();
+  seasonImgCache = new Map(seasons.map((s) => [s.seasonId, s.seasonImg]));
+  return seasonImgCache;
+}
 
 // GET: AI 분석이 완료된 선수 목록
 export async function GET(req: NextRequest) {
@@ -37,7 +47,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // summary 정보 합치기
+  // 시즌 이미지 맵
+  const seasonImgMap = await getSeasonImgMap();
+
+  // summary + season image 정보 합치기
   const summaryMap = new Map(summaries.map((s) => [s.spid, s]));
   const result = (players || []).map((p) => {
     const s = summaryMap.get(p.spid);
@@ -45,6 +58,7 @@ export async function GET(req: NextRequest) {
       ...p,
       review_count: s?.review_count || 0,
       summary_preview: s?.summary?.slice(0, 80) || "",
+      season_img: seasonImgMap.get(p.season_id) || null,
     };
   });
 

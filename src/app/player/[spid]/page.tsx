@@ -132,21 +132,20 @@ export default function PlayerPage({
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-2">
-              {player.season_id && (
+              {(player as Player & { season_img?: string }).season_img ? (
                 <img
-                  src={`https://fco.dn.nexoncdn.co.kr/live/externalAssets/common/seasonImg/seasonicon_${player.season_id}.png`}
+                  src={(player as Player & { season_img?: string }).season_img!}
                   alt={player.season_name || ""}
                   className="h-5 w-auto"
                   onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.style.display = "none";
-                    const span = document.createElement("span");
-                    span.className = "text-xs px-2 py-0.5 rounded bg-blue-500/15 text-blue-400 font-semibold";
-                    span.textContent = player.season_name || "";
-                    target.parentNode?.insertBefore(span, target);
+                    (e.target as HTMLImageElement).style.display = "none";
                   }}
                 />
-              )}
+              ) : player.season_name ? (
+                <span className="text-xs px-2 py-0.5 rounded bg-blue-500/15 text-blue-400 font-semibold">
+                  {player.season_name.split("(")[0].trim()}
+                </span>
+              ) : null}
               {player.position && (
                 <span className="text-xs px-2 py-1 rounded-lg bg-slate-700/50 text-slate-300">
                   {player.position}

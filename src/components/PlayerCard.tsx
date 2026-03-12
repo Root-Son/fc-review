@@ -5,7 +5,7 @@ import Image from "next/image";
 import type { Player } from "@/lib/types";
 
 interface PlayerCardProps {
-  player: Player & { review_count?: number; summary_preview?: string };
+  player: Player & { review_count?: number; summary_preview?: string; season_img?: string | null };
 }
 
 export default function PlayerCard({ player }: PlayerCardProps) {
@@ -30,16 +30,20 @@ export default function PlayerCard({ player }: PlayerCardProps) {
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
-          {player.season_id && (
+          {player.season_img ? (
             <img
-              src={`https://fco.dn.nexoncdn.co.kr/live/externalAssets/common/seasonImg/seasonicon_${player.season_id}.png`}
+              src={player.season_img}
               alt={player.season_name || ""}
               className="h-4 w-auto shrink-0"
               onError={(e) => {
                 (e.target as HTMLImageElement).style.display = "none";
               }}
             />
-          )}
+          ) : player.season_name ? (
+            <span className="text-xs px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-400 font-semibold shrink-0">
+              {player.season_name.split(" ")[0]}
+            </span>
+          ) : null}
           <span className="font-semibold text-white truncate text-sm">
             {player.name}
           </span>
