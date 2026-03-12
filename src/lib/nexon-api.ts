@@ -1,11 +1,22 @@
-const BASE_URL = "https://open.api.nexon.com/fconline/v1";
+const API_URL = "https://open.api.nexon.com/fconline/v1";
+const META_URL = "https://open.api.nexon.com/static/fconline/meta";
 
+// API 호출 (인증 필요)
 async function nexonFetch<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
+  const res = await fetch(`${API_URL}${path}`, {
     headers: { "x-nxopen-api-key": process.env.NEXON_API_KEY! },
     next: { revalidate: 3600 },
   });
   if (!res.ok) throw new Error(`Nexon API error: ${res.status} ${path}`);
+  return res.json();
+}
+
+// 정적 메타데이터 (인증 불필요)
+async function metaFetch<T>(name: string): Promise<T> {
+  const res = await fetch(`${META_URL}/${name}.json`, {
+    next: { revalidate: 86400 },
+  });
+  if (!res.ok) throw new Error(`Nexon meta error: ${res.status} ${name}`);
   return res.json();
 }
 
@@ -20,19 +31,19 @@ export interface SeasonMeta {
   seasonImg: string;
 }
 
-// 메타데이터
+// 메타데이터 (정적 JSON)
 export async function fetchAllPlayers(): Promise<SpidMeta[]> {
-  return nexonFetch("/metadata/spid");
+  return metaFetch("spid");
 }
 
 export async function fetchSeasons(): Promise<SeasonMeta[]> {
-  return nexonFetch("/metadata/seasonid");
+  return metaFetch("seasonid");
 }
 
 export async function fetchPositions(): Promise<
   { spposition: number; desc: string }[]
 > {
-  return nexonFetch("/metadata/spposition");
+  return metaFetch("spposition");
 }
 
 // 선수 이미지 URL
