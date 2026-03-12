@@ -5,22 +5,25 @@ import Image from "next/image";
 import type { Player } from "@/lib/types";
 
 export default function PlayerCard({ player }: { player: Player }) {
+  const imgUrl = `https://fco.dn.nexoncdn.co.kr/live/externalAssets/common/playersAction/p${player.spid}.png`;
+
   return (
     <Link
       href={`/player/${player.spid}`}
       className="group flex items-center gap-3 rounded-xl bg-slate-800/60 border border-slate-700/50 p-3 hover:bg-slate-700/60 hover:border-blue-500/30 transition-all"
     >
-      {player.image_url && (
-        <div className="relative w-14 h-14 rounded-lg overflow-hidden bg-slate-700 shrink-0">
-          <Image
-            src={player.image_url}
-            alt={player.name}
-            fill
-            className="object-cover"
-            unoptimized
-          />
-        </div>
-      )}
+      <div className="relative w-14 h-14 rounded-lg overflow-hidden bg-slate-700/50 shrink-0">
+        <Image
+          src={imgUrl}
+          alt={player.name}
+          fill
+          className="object-contain"
+          unoptimized
+          onError={(e) => {
+            (e.target as HTMLImageElement).style.display = "none";
+          }}
+        />
+      </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           {player.season_name && (

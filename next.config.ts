@@ -5,12 +5,8 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "open.api.nexon.com",
-        pathname: "/static/fconline/**",
-      },
-      {
-        protocol: "https",
-        hostname: "fconline.nexon.com",
+        hostname: "fco.dn.nexoncdn.co.kr",
+        pathname: "/live/externalAssets/**",
       },
     ],
   },

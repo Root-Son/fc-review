@@ -53,7 +53,7 @@ export default function HomePage() {
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && search()}
             placeholder="선수 이름을 검색하세요 (예: 손흥민, 메시)"
-            className="flex-1 rounded-xl bg-slate-800 border border-slate-700 px-4 py-3 text-sm placeholder:text-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
+            className="flex-1 rounded-xl bg-slate-800 border border-slate-700 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
           />
           <button
             onClick={search}

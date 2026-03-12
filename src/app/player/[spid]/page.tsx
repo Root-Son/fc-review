@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect, useRef, use } from "react";
 import Image from "next/image";
 import HexagonChart from "@/components/HexagonChart";
 import RecommendationBadge from "@/components/RecommendationBadge";
@@ -30,19 +30,35 @@ export default function PlayerPage({
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
-  const [activeTab, setActiveTab] = useState<"summary" | "reviews">("summary");
+  const [analyzeStatus, setAnalyzeStatus] = useState("");
+  const [activeTab, setActiveTab] = useState<"summary" | "reviews">(
+    "summary"
+  );
+  const autoTriggered = useRef(false);
 
   useEffect(() => {
-    fetchPlayerData();
-    fetchReviews();
+    loadData();
   }, [spid]);
 
-  async function fetchPlayerData() {
+  async function loadData() {
     setLoading(true);
     try {
       const res = await fetch(`/api/players/${spid}`);
-      if (res.ok) {
-        setData(await res.json());
+      if (!res.ok) return;
+      const json: PlayerData = await res.json();
+      setData(json);
+
+      // 리뷰 로드
+      const revRes = await fetch(`/api/players/${spid}/reviews`);
+      if (revRes.ok) {
+        const revJson = await revRes.json();
+        setReviews(revJson.reviews || []);
+      }
+
+      // AI 분석이 없으면 자동 트리거
+      if (!json.summary && !autoTriggered.current) {
+        autoTriggered.current = true;
+        triggerAnalysis();
       }
     } catch {
       /* ignore */
@@ -51,31 +67,33 @@ export default function PlayerPage({
     }
   }
 
-  async function fetchReviews() {
-    try {
-      const res = await fetch(`/api/players/${spid}/reviews`);
-      if (res.ok) {
-        const json = await res.json();
-        setReviews(json.reviews || []);
-      }
-    } catch {
-      /* ignore */
-    }
-  }
-
   async function triggerAnalysis() {
     setAnalyzing(true);
+    setAnalyzeStatus("리뷰를 수집하고 있습니다...");
     try {
       const res = await fetch(`/api/players/${spid}/analyze`, {
         method: "POST",
       });
       if (res.ok) {
-        // 분석 완료 후 데이터 새로고침
-        await fetchPlayerData();
-        await fetchReviews();
+        setAnalyzeStatus("분석 완료!");
+        // 새로고침
+        const dataRes = await fetch(`/api/players/${spid}`);
+        if (dataRes.ok) setData(await dataRes.json());
+        const revRes = await fetch(`/api/players/${spid}/reviews`);
+        if (revRes.ok) {
+          const revJson = await revRes.json();
+          setReviews(revJson.reviews || []);
+        }
+      } else {
+        const err = await res.json();
+        setAnalyzeStatus(
+          err.error === "No reviews available for analysis"
+            ? "수집된 리뷰가 없어 분석을 진행할 수 없습니다"
+            : "분석 중 오류가 발생했습니다"
+        );
       }
     } catch {
-      /* ignore */
+      setAnalyzeStatus("분석 중 오류가 발생했습니다");
     } finally {
       setAnalyzing(false);
     }
@@ -83,8 +101,9 @@ export default function PlayerPage({
 
   if (loading) {
     return (
-      <div className="flex justify-center py-20">
-        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      <div className="flex flex-col items-center justify-center py-24 gap-3">
+        <div className="w-10 h-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        <p className="text-sm text-slate-400">선수 정보를 불러오는 중...</p>
       </div>
     );
   }
@@ -92,143 +111,166 @@ export default function PlayerPage({
   if (!data) {
     return (
       <div className="text-center py-20 text-slate-500">
-        선수를 찾을 수 없습니다
+        <p className="text-xl mb-2">선수를 찾을 수 없습니다</p>
+        <a href="/" className="text-blue-400 text-sm hover:underline">
+          돌아가기
+        </a>
       </div>
     );
   }
 
   const { player, summary, feelStats, reviewCount } = data;
+  const imgUrl = `https://fco.dn.nexoncdn.co.kr/live/externalAssets/common/playersAction/p${player.spid}.png`;
 
   return (
-    <div>
+    <div className="max-w-4xl mx-auto">
       {/* 선수 헤더 */}
-      <div className="flex items-start gap-5 mb-8">
-        {player.image_url && (
-          <div className="relative w-24 h-24 rounded-2xl overflow-hidden bg-slate-800 shrink-0">
+      <div className="relative rounded-2xl bg-gradient-to-br from-slate-800/80 to-slate-900/80 border border-slate-700/40 p-6 mb-6 overflow-hidden">
+        <div className="absolute top-0 right-0 w-40 h-40 bg-blue-500/5 rounded-full blur-3xl" />
+        <div className="flex items-center gap-5 relative">
+          <div className="relative w-28 h-28 rounded-2xl overflow-hidden bg-slate-800/80 shrink-0 border border-slate-700/30">
             <Image
-              src={player.image_url}
+              src={imgUrl}
               alt={player.name}
               fill
-              className="object-cover"
+              className="object-contain"
               unoptimized
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = "none";
+              }}
             />
           </div>
-        )}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            {player.season_name && (
-              <span className="text-xs px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 font-medium">
-                {player.season_name}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-2">
+              {player.season_name && (
+                <span className="text-xs px-2.5 py-1 rounded-lg bg-blue-500/15 text-blue-400 font-semibold border border-blue-500/20">
+                  {player.season_name}
+                </span>
+              )}
+              {player.position && (
+                <span className="text-xs px-2 py-1 rounded-lg bg-slate-700/50 text-slate-300">
+                  {player.position}
+                </span>
+              )}
+            </div>
+            <h1 className="text-3xl font-black tracking-tight">
+              {player.name}
+            </h1>
+            <div className="flex items-center gap-4 mt-2">
+              {player.ovr && (
+                <span className="text-lg text-yellow-400 font-bold">
+                  OVR {player.ovr}
+                </span>
+              )}
+              <span className="text-sm text-slate-500">
+                {reviewCount}개의 리뷰
               </span>
-            )}
-            {player.position && (
-              <span className="text-xs text-slate-400">{player.position}</span>
-            )}
-          </div>
-          <h1 className="text-2xl font-black">{player.name}</h1>
-          <div className="flex items-center gap-3 mt-2 text-sm text-slate-400">
-            {player.ovr && (
-              <span className="text-yellow-400 font-semibold">
-                OVR {player.ovr}
-              </span>
-            )}
-            <span>{reviewCount}개의 리뷰</span>
+            </div>
           </div>
         </div>
-
-        {/* 분석 버튼 */}
-        <button
-          onClick={triggerAnalysis}
-          disabled={analyzing}
-          className="shrink-0 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 font-semibold text-sm transition-all disabled:opacity-50"
-        >
-          {analyzing ? (
-            <span className="flex items-center gap-2">
-              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              분석중...
-            </span>
-          ) : (
-            "🤖 AI 분석 실행"
-          )}
-        </button>
       </div>
+
+      {/* 분석 중 상태 */}
+      {analyzing && (
+        <div className="rounded-xl bg-blue-500/10 border border-blue-500/20 p-4 mb-6 flex items-center gap-3">
+          <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin shrink-0" />
+          <div>
+            <p className="text-sm text-blue-300 font-medium">
+              AI 분석 진행 중
+            </p>
+            <p className="text-xs text-blue-400/70">{analyzeStatus}</p>
+          </div>
+        </div>
+      )}
+
+      {/* 분석 실패 메시지 */}
+      {!analyzing && analyzeStatus && !summary && (
+        <div className="rounded-xl bg-slate-800/40 border border-slate-700/30 p-4 mb-6 flex items-center justify-between">
+          <p className="text-sm text-slate-400">{analyzeStatus}</p>
+          <button
+            onClick={triggerAnalysis}
+            className="text-xs px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 font-medium transition-colors"
+          >
+            다시 시도
+          </button>
+        </div>
+      )}
 
       {/* 탭 */}
       <div className="flex gap-1 mb-6 border-b border-slate-800">
-        <button
-          onClick={() => setActiveTab("summary")}
-          className={`px-4 py-2.5 text-sm font-medium transition-colors relative ${
-            activeTab === "summary"
-              ? "text-blue-400"
-              : "text-slate-500 hover:text-slate-300"
-          }`}
-        >
-          AI 분석
-          {activeTab === "summary" && (
-            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-400 rounded-full" />
-          )}
-        </button>
-        <button
-          onClick={() => setActiveTab("reviews")}
-          className={`px-4 py-2.5 text-sm font-medium transition-colors relative ${
-            activeTab === "reviews"
-              ? "text-blue-400"
-              : "text-slate-500 hover:text-slate-300"
-          }`}
-        >
-          리뷰 ({reviewCount})
-          {activeTab === "reviews" && (
-            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-400 rounded-full" />
-          )}
-        </button>
+        {(["summary", "reviews"] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-5 py-3 text-sm font-medium transition-colors relative ${
+              activeTab === tab
+                ? "text-white"
+                : "text-slate-500 hover:text-slate-300"
+            }`}
+          >
+            {tab === "summary" ? "AI 분석" : `리뷰 (${reviewCount})`}
+            {activeTab === tab && (
+              <div className="absolute bottom-0 left-2 right-2 h-0.5 bg-gradient-to-r from-blue-400 to-cyan-400 rounded-full" />
+            )}
+          </button>
+        ))}
+        {summary && (
+          <button
+            onClick={triggerAnalysis}
+            disabled={analyzing}
+            className="ml-auto text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors disabled:opacity-50 my-1.5"
+          >
+            재분석
+          </button>
+        )}
       </div>
 
       {activeTab === "summary" ? (
         <div>
           {summary ? (
-            <div className="space-y-6">
+            <div className="space-y-5">
               {/* AI 요약 */}
-              <div className="rounded-xl bg-slate-800/40 border border-slate-700/30 p-5">
-                <h2 className="text-sm font-semibold text-slate-300 mb-3 flex items-center gap-2">
-                  <span className="text-blue-400">🤖</span> AI 리뷰
-                  요약
+              <div className="rounded-2xl bg-gradient-to-br from-slate-800/60 to-slate-800/30 border border-slate-700/30 p-6">
+                <h2 className="text-base font-bold text-white mb-3 flex items-center gap-2">
+                  AI 리뷰 요약
                   <span className="text-xs text-slate-500 font-normal">
-                    ({summary.review_count}개 리뷰 기반)
+                    {summary.review_count}개 리뷰 분석
                   </span>
                 </h2>
                 <p className="text-sm text-slate-300 leading-relaxed">
                   {summary.summary}
                 </p>
 
-                {/* 장단점 */}
-                <div className="grid sm:grid-cols-2 gap-4 mt-4">
-                  <div>
-                    <h3 className="text-xs font-semibold text-green-400 mb-2">
-                      장점
+                <div className="grid sm:grid-cols-2 gap-5 mt-5">
+                  <div className="rounded-xl bg-green-500/5 border border-green-500/10 p-4">
+                    <h3 className="text-xs font-bold text-green-400 mb-3 uppercase tracking-wider">
+                      Pros
                     </h3>
-                    <ul className="space-y-1">
+                    <ul className="space-y-2">
                       {summary.pros.map((pro, i) => (
                         <li
                           key={i}
-                          className="text-xs text-slate-400 flex items-start gap-1.5"
+                          className="text-sm text-slate-300 flex items-start gap-2"
                         >
-                          <span className="text-green-400 mt-0.5">+</span>
+                          <span className="text-green-400 text-xs mt-1">
+                            ●
+                          </span>
                           {pro}
                         </li>
                       ))}
                     </ul>
                   </div>
-                  <div>
-                    <h3 className="text-xs font-semibold text-red-400 mb-2">
-                      단점
+                  <div className="rounded-xl bg-red-500/5 border border-red-500/10 p-4">
+                    <h3 className="text-xs font-bold text-red-400 mb-3 uppercase tracking-wider">
+                      Cons
                     </h3>
-                    <ul className="space-y-1">
+                    <ul className="space-y-2">
                       {summary.cons.map((con, i) => (
                         <li
                           key={i}
-                          className="text-xs text-slate-400 flex items-start gap-1.5"
+                          className="text-sm text-slate-300 flex items-start gap-2"
                         >
-                          <span className="text-red-400 mt-0.5">-</span>
+                          <span className="text-red-400 text-xs mt-1">●</span>
                           {con}
                         </li>
                       ))}
@@ -237,54 +279,64 @@ export default function PlayerPage({
                 </div>
               </div>
 
-              {/* 체감 스탯 차트 */}
-              {feelStats && (
-                <div className="rounded-xl bg-slate-800/40 border border-slate-700/30 p-5">
-                  <h2 className="text-sm font-semibold text-slate-300 mb-4 flex items-center gap-2">
-                    <span className="text-cyan-400">📊</span> 체감
-                    스탯
-                  </h2>
-                  <div className="flex justify-center">
-                    <HexagonChart
-                      stats={{
-                        shooting_feel: feelStats.shooting_feel,
-                        physical_feel: feelStats.physical_feel,
-                        pass_accuracy_feel: feelStats.pass_accuracy_feel,
-                        weak_foot_feel: feelStats.weak_foot_feel,
-                        skill_move_feel: feelStats.skill_move_feel,
-                        overall_feel: feelStats.overall_feel,
-                      }}
-                    />
+              {/* 체감 스탯 + 맞춤 추천 가로 배치 */}
+              <div className="grid lg:grid-cols-2 gap-5">
+                {/* 체감 스탯 차트 */}
+                {feelStats && (
+                  <div className="rounded-2xl bg-gradient-to-br from-slate-800/60 to-slate-800/30 border border-slate-700/30 p-6">
+                    <h2 className="text-base font-bold text-white mb-4">
+                      체감 스탯
+                    </h2>
+                    <div className="flex justify-center">
+                      <HexagonChart
+                        stats={{
+                          shooting_feel: feelStats.shooting_feel,
+                          physical_feel: feelStats.physical_feel,
+                          pass_accuracy_feel: feelStats.pass_accuracy_feel,
+                          weak_foot_feel: feelStats.weak_foot_feel,
+                          skill_move_feel: feelStats.skill_move_feel,
+                          overall_feel: feelStats.overall_feel,
+                        }}
+                      />
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* 맞춤 추천 */}
-              {summary.recommendations && summary.recommendations.length > 0 && (
-                <div className="rounded-xl bg-slate-800/40 border border-slate-700/30 p-5">
-                  <h2 className="text-sm font-semibold text-slate-300 mb-4 flex items-center gap-2">
-                    <span className="text-yellow-400">🎯</span> 맞춤
-                    추천
-                  </h2>
-                  <div className="space-y-2">
-                    {summary.recommendations.map(
-                      (rec: Recommendation, i: number) => (
-                        <RecommendationBadge key={i} rec={rec} />
-                      )
-                    )}
-                  </div>
-                </div>
-              )}
+                {/* 맞춤 추천 */}
+                {summary.recommendations &&
+                  summary.recommendations.length > 0 && (
+                    <div className="rounded-2xl bg-gradient-to-br from-slate-800/60 to-slate-800/30 border border-slate-700/30 p-6">
+                      <h2 className="text-base font-bold text-white mb-4">
+                        맞춤 추천
+                      </h2>
+                      <div className="space-y-2">
+                        {summary.recommendations.map(
+                          (rec: Recommendation, i: number) => (
+                            <RecommendationBadge key={i} rec={rec} />
+                          )
+                        )}
+                      </div>
+                    </div>
+                  )}
+              </div>
             </div>
-          ) : (
-            <div className="text-center py-16 text-slate-500">
-              <p className="text-lg mb-2">아직 AI 분석이 없습니다</p>
-              <p className="text-sm mb-4">
-                &quot;AI 분석 실행&quot; 버튼을 눌러 리뷰를 수집하고 분석을
-                시작하세요
+          ) : !analyzing ? (
+            <div className="text-center py-20 text-slate-500">
+              <div className="w-16 h-16 rounded-2xl bg-slate-800/50 flex items-center justify-center mx-auto mb-4 text-3xl">
+                🔍
+              </div>
+              <p className="text-lg mb-2">AI 분석 데이터가 없습니다</p>
+              <p className="text-sm text-slate-600 mb-5">
+                리뷰를 크롤링하고 AI 분석을 실행합니다
               </p>
+              <button
+                onClick={triggerAnalysis}
+                className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 font-semibold text-sm transition-colors"
+              >
+                AI 분석 실행
+              </button>
             </div>
-          )}
+          ) : null}
         </div>
       ) : (
         <div className="space-y-3">
@@ -293,10 +345,10 @@ export default function PlayerPage({
               <ReviewCard key={review.id} review={review} />
             ))
           ) : (
-            <div className="text-center py-12 text-slate-500">
-              <p>아직 수집된 리뷰가 없습니다</p>
-              <p className="text-sm mt-1">
-                AI 분석을 실행하면 리뷰가 자동으로 수집됩니다
+            <div className="text-center py-16 text-slate-500">
+              <p className="text-lg mb-1">수집된 리뷰가 없습니다</p>
+              <p className="text-sm text-slate-600">
+                AI 분석이 완료되면 리뷰가 표시됩니다
               </p>
             </div>
           )}

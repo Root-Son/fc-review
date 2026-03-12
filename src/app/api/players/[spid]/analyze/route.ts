@@ -24,8 +24,8 @@ export async function POST(
     return NextResponse.json({ error: "Player not found" }, { status: 404 });
   }
 
-  // 2. 리뷰 크롤링
-  const crawled = await crawlAllReviews(spidNum);
+  // 2. 리뷰 크롤링 (선수 이름 전달하여 인벤 검색)
+  const crawled = await crawlAllReviews(spidNum, player.name);
 
   // 3. 크롤링된 리뷰 DB 저장
   if (crawled.length > 0) {

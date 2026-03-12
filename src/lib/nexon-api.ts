@@ -46,14 +46,14 @@ export async function fetchPositions(): Promise<
   return metaFetch("spposition");
 }
 
-// 선수 이미지 URL
+// 선수 이미지 URL (Nexon CDN)
 export function getPlayerImageUrl(spid: number): string {
-  return `https://open.api.nexon.com/static/fconline/PlayerImg/${spid}.png`;
+  return `https://fco.dn.nexoncdn.co.kr/live/externalAssets/common/playersAction/p${spid}.png`;
 }
 
 // 시즌 아이콘 URL
 export function getSeasonImageUrl(seasonId: number): string {
-  return `https://open.api.nexon.com/static/fconline/SeasonImg/${seasonId}.png`;
+  return `https://fco.dn.nexoncdn.co.kr/live/externalAssets/common/seasonImg/seasonicon_${seasonId}.png`;
 }
 
 // 랭커 스탯 조회
