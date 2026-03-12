@@ -4,7 +4,11 @@ import Link from "next/link";
 import Image from "next/image";
 import type { Player } from "@/lib/types";
 
-export default function PlayerCard({ player }: { player: Player }) {
+interface PlayerCardProps {
+  player: Player & { review_count?: number; summary_preview?: string };
+}
+
+export default function PlayerCard({ player }: PlayerCardProps) {
   const imgUrl = `https://fco.dn.nexoncdn.co.kr/live/externalAssets/common/playersAction/p${player.spid}.png`;
 
   return (
@@ -47,7 +51,17 @@ export default function PlayerCard({ player }: { player: Player }) {
               OVR {player.ovr}
             </span>
           )}
+          {player.review_count != null && player.review_count > 0 && (
+            <span className="text-blue-400">
+              리뷰 {player.review_count}
+            </span>
+          )}
         </div>
+        {player.summary_preview && (
+          <p className="text-xs text-slate-500 mt-1 truncate">
+            {player.summary_preview}...
+          </p>
+        )}
       </div>
       <svg
         className="w-4 h-4 text-slate-500 group-hover:text-blue-400 transition-colors shrink-0"
