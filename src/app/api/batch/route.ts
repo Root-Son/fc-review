@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServiceSupabase } from "@/lib/supabase";
-import { crawlInvenBatch, crawlInvenByPlayer } from "@/lib/crawler";
+import { crawlInvenBatch, crawlYoutubeBatch } from "@/lib/crawler";
 import { analyzeReviews } from "@/lib/ai-summary";
 import type { Review } from "@/lib/types";
 
 // POST: 배치 크롤링 + AI 분석
-// ?mode=crawl  → 인벤 리뷰 배치 크롤링만
-// ?mode=analyze → 리뷰 있는 선수 중 AI 분석 없는 선수 분석
-// ?mode=all    → 크롤링 + 분석 모두
-// ?pages=10    → 크롤링할 페이지 수
+// ?mode=crawl    → 인벤 리뷰 배치 크롤링
+// ?mode=youtube  → 유튜브 리뷰 크롤링
+// ?mode=analyze  → 리뷰 있는 선수 중 AI 분석 없는 선수 분석
+// ?mode=all      → 크롤링 + 분석 모두
+// ?pages=10      → 크롤링할 페이지 수
 // ?analyzeLimit=5 → 한번에 분석할 선수 수
 export async function POST(req: NextRequest) {
   const mode = req.nextUrl.searchParams.get("mode") || "all";
@@ -60,6 +61,52 @@ export async function POST(req: NextRequest) {
     }
 
     results.crawl = { total: crawled.length, saved };
+  }
+
+  // === STEP 1.5: 유튜브 크롤링 ===
+  if (mode === "youtube") {
+    const maxVideos = parseInt(req.nextUrl.searchParams.get("maxVideos") || "10");
+    const crawled = await crawlYoutubeBatch(maxVideos);
+    let saved = 0;
+
+    for (const r of crawled) {
+      // 유튜브 리뷰는 source_url로 중복 체크
+      const { data: existing } = await db
+        .from("reviews")
+        .select("id")
+        .eq("source_url", r.source_url)
+        .limit(1);
+
+      if (existing && existing.length > 0) continue;
+
+      // spid가 없으면 playerName으로 매칭 시도
+      let spid = r.spid;
+      if (!spid && r.playerName) {
+        const { data: player } = await db
+          .from("players")
+          .select("spid")
+          .ilike("name", `%${r.playerName}%`)
+          .limit(1)
+          .single();
+        if (player) spid = player.spid;
+      }
+
+      if (!spid) continue; // FK 제약: spid 필수
+
+      const { error } = await db.from("reviews").insert({
+        spid,
+        source: "youtube",
+        author: r.author,
+        content: r.content,
+        rating: null,
+        source_url: r.source_url,
+        source_date: r.source_date,
+      });
+
+      if (!error) saved++;
+    }
+
+    results.youtube = { total: crawled.length, saved };
   }
 
   // === STEP 2: AI 분석 ===

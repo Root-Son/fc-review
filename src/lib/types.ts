@@ -12,7 +12,7 @@ export interface Player {
 export interface Review {
   id: number;
   spid: number;
-  source: "official" | "inven" | "fionbook";
+  source: "official" | "inven" | "fionbook" | "youtube";
   author: string | null;
   content: string;
   rating: number | null;
@@ -60,6 +60,7 @@ export const SOURCE_LABELS: Record<string, string> = {
   official: "공식 홈페이지",
   inven: "인벤",
   fionbook: "피온북",
+  youtube: "유튜브",
 };
 
 export const RECOMMENDATION_LABELS: Record<string, string> = {
