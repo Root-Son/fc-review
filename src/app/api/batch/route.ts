@@ -13,7 +13,8 @@ import type { Review } from "@/lib/types";
 // ?analyzeLimit=5 → 한번에 분석할 선수 수
 export async function POST(req: NextRequest) {
   const mode = req.nextUrl.searchParams.get("mode") || "all";
-  const pages = parseInt(req.nextUrl.searchParams.get("pages") || "10");
+  const pages = parseInt(req.nextUrl.searchParams.get("pages") || "5");
+  const startPage = parseInt(req.nextUrl.searchParams.get("startPage") || "1");
   const analyzeLimit = parseInt(
     req.nextUrl.searchParams.get("analyzeLimit") || "5"
   );
@@ -22,7 +23,7 @@ export async function POST(req: NextRequest) {
 
   // === STEP 1: 크롤링 ===
   if (mode === "crawl" || mode === "all") {
-    const crawled = await crawlInvenBatch(pages);
+    const crawled = await crawlInvenBatch(pages, startPage);
     let saved = 0;
 
     for (const r of crawled) {

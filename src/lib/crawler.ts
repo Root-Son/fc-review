@@ -132,15 +132,16 @@ async function parseInvenPage(url: string): Promise<CrawledReview[]> {
   return reviews;
 }
 
-// 배치 크롤링: 인벤 최신 리뷰 N페이지 수집
+// 배치 크롤링: 인벤 리뷰 N페이지 수집 (startPage부터)
 export async function crawlInvenBatch(
-  totalPages: number = 10
+  totalPages: number = 5,
+  startPage: number = 1
 ): Promise<CrawledReview[]> {
   const all: CrawledReview[] = [];
-  for (let pg = 1; pg <= totalPages; pg++) {
+  for (let pg = startPage; pg < startPage + totalPages; pg++) {
     const reviews = await crawlInvenPage(pg);
     all.push(...reviews);
-    await new Promise((r) => setTimeout(r, 500));
+    await new Promise((r) => setTimeout(r, 300));
   }
   return all;
 }
