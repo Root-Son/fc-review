@@ -25,11 +25,16 @@ export default function PlayerCard({ player }: { player: Player }) {
         />
       </div>
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          {player.season_name && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 font-medium shrink-0">
-              {player.season_name}
-            </span>
+        <div className="flex items-center gap-1.5">
+          {player.season_id && (
+            <img
+              src={`https://fco.dn.nexoncdn.co.kr/live/externalAssets/common/seasonImg/seasonicon_${player.season_id}.png`}
+              alt={player.season_name || ""}
+              className="h-4 w-auto shrink-0"
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = "none";
+              }}
+            />
           )}
           <span className="font-semibold text-white truncate text-sm">
             {player.name}

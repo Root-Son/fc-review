@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, use } from "react";
+import { useState, useEffect, use } from "react";
 import Image from "next/image";
 import HexagonChart from "@/components/HexagonChart";
 import RecommendationBadge from "@/components/RecommendationBadge";
@@ -34,8 +34,6 @@ export default function PlayerPage({
   const [activeTab, setActiveTab] = useState<"summary" | "reviews">(
     "summary"
   );
-  const autoTriggered = useRef(false);
-
   useEffect(() => {
     loadData();
   }, [spid]);
@@ -43,22 +41,14 @@ export default function PlayerPage({
   async function loadData() {
     setLoading(true);
     try {
-      const res = await fetch(`/api/players/${spid}`);
-      if (!res.ok) return;
-      const json: PlayerData = await res.json();
-      setData(json);
-
-      // 리뷰 로드
-      const revRes = await fetch(`/api/players/${spid}/reviews`);
+      const [dataRes, revRes] = await Promise.all([
+        fetch(`/api/players/${spid}`),
+        fetch(`/api/players/${spid}/reviews`),
+      ]);
+      if (dataRes.ok) setData(await dataRes.json());
       if (revRes.ok) {
         const revJson = await revRes.json();
         setReviews(revJson.reviews || []);
-      }
-
-      // AI 분석이 없으면 자동 트리거
-      if (!json.summary && !autoTriggered.current) {
-        autoTriggered.current = true;
-        triggerAnalysis();
       }
     } catch {
       /* ignore */
@@ -142,10 +132,20 @@ export default function PlayerPage({
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-2">
-              {player.season_name && (
-                <span className="text-xs px-2.5 py-1 rounded-lg bg-blue-500/15 text-blue-400 font-semibold border border-blue-500/20">
-                  {player.season_name}
-                </span>
+              {player.season_id && (
+                <img
+                  src={`https://fco.dn.nexoncdn.co.kr/live/externalAssets/common/seasonImg/seasonicon_${player.season_id}.png`}
+                  alt={player.season_name || ""}
+                  className="h-5 w-auto"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = "none";
+                    const span = document.createElement("span");
+                    span.className = "text-xs px-2 py-0.5 rounded bg-blue-500/15 text-blue-400 font-semibold";
+                    span.textContent = player.season_name || "";
+                    target.parentNode?.insertBefore(span, target);
+                  }}
+                />
               )}
               {player.position && (
                 <span className="text-xs px-2 py-1 rounded-lg bg-slate-700/50 text-slate-300">
@@ -320,23 +320,17 @@ export default function PlayerPage({
                   )}
               </div>
             </div>
-          ) : !analyzing ? (
+          ) : (
             <div className="text-center py-20 text-slate-500">
               <div className="w-16 h-16 rounded-2xl bg-slate-800/50 flex items-center justify-center mx-auto mb-4 text-3xl">
-                🔍
+                📋
               </div>
-              <p className="text-lg mb-2">AI 분석 데이터가 없습니다</p>
-              <p className="text-sm text-slate-600 mb-5">
-                리뷰를 크롤링하고 AI 분석을 실행합니다
+              <p className="text-lg mb-2">아직 분석 데이터가 준비되지 않았습니다</p>
+              <p className="text-sm text-slate-600">
+                이 선수의 리뷰가 수집되면 AI 분석이 자동으로 생성됩니다
               </p>
-              <button
-                onClick={triggerAnalysis}
-                className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 font-semibold text-sm transition-colors"
-              >
-                AI 분석 실행
-              </button>
             </div>
-          ) : null}
+          )}
         </div>
       ) : (
         <div className="space-y-3">
