@@ -78,11 +78,22 @@ export async function POST(
   }
 
   // 5. AI 분석
-  const analysis = await analyzeReviews(
-    player.name,
-    player.season_name || "",
-    allReviews as Review[]
-  );
+  let analysis;
+  try {
+    analysis = await analyzeReviews(
+      player.name,
+      player.season_name || "",
+      allReviews as Review[]
+    );
+  } catch (e) {
+    return NextResponse.json({
+      error: "AI analysis failed",
+      detail: String(e),
+      crawledCount: crawled.length,
+      savedCount,
+      totalReviews: allReviews.length,
+    }, { status: 500 });
+  }
 
   // 6. 저장
   await db.from("ai_summaries").upsert({
