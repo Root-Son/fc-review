@@ -25,9 +25,13 @@ export async function POST(req: NextRequest) {
   if (mode === "crawl" || mode === "all") {
     const crawled = await crawlInvenBatch(pages, startPage);
     let saved = 0;
+    let skippedNoSpid = 0;
+    let skippedNoPlayer = 0;
+    let skippedDuplicate = 0;
+    let insertErrors: string[] = [];
 
     for (const r of crawled) {
-      if (!r.spid) continue;
+      if (!r.spid) { skippedNoSpid++; continue; }
 
       // 해당 선수가 players 테이블에 있는지 확인
       const { data: player } = await db
@@ -36,7 +40,7 @@ export async function POST(req: NextRequest) {
         .eq("spid", r.spid)
         .single();
 
-      if (!player) continue;
+      if (!player) { skippedNoPlayer++; continue; }
 
       // 중복 체크 (같은 spid + 같은 content)
       const { data: existing } = await db
@@ -46,7 +50,7 @@ export async function POST(req: NextRequest) {
         .eq("content", r.content)
         .limit(1);
 
-      if (existing && existing.length > 0) continue;
+      if (existing && existing.length > 0) { skippedDuplicate++; continue; }
 
       const { error } = await db.from("reviews").insert({
         spid: r.spid,
@@ -59,9 +63,18 @@ export async function POST(req: NextRequest) {
       });
 
       if (!error) saved++;
+      else insertErrors.push(`${r.spid}: ${error.message}`);
     }
 
-    results.crawl = { total: crawled.length, saved };
+    results.crawl = {
+      total: crawled.length,
+      saved,
+      skippedNoSpid,
+      skippedNoPlayer,
+      skippedDuplicate,
+      insertErrors: insertErrors.slice(0, 5),
+      sample: crawled.slice(0, 2).map(r => ({ spid: r.spid, content: r.content?.slice(0, 30) })),
+    };
   }
 
   // === STEP 1.5: 유튜브 크롤링 ===
