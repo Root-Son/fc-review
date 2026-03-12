@@ -31,7 +31,7 @@ export async function analyzeReviews(
     .join("\n");
 
   const model = genAI.getGenerativeModel({
-    model: "gemini-2.0-flash-lite",
+    model: "gemini-2.5-flash-lite-preview-09-2025",
     generationConfig: {
       responseMimeType: "application/json",
     },
